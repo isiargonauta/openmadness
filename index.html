@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <script src = "node_modules/d3/d3.js"  charset="utf-8"></script>
+    <title>Experimentos</title>
+</head>
+
+<body>
+  
+</body>
+
+<script type="text/javascript">
+    var SPARQL_ENDPOINT = 'http://datos.zaragoza.es/sparql';
+    var grafo = 'http://www.zaragoza.es/sector-publico/contrato';
+                var SPARQL_ENDPOINT = 'http://datos.zaragoza.es/sparql';
+            var query = 'PREFIX monumento: <http://vocab.linkeddata.es/datosabiertos/def/turismo/lugar#>\
+                    SELECT DISTINCT ?uri ?title ?description min(?latitud) as ?latitud min(?longitud) as ?longitud \
+                    WHERE { ?uri a monumento:LugarInteresTuristico. \
+                       OPTIONAL{ ?uri rdfs:label  ?title}.\
+                       OPTIONAL{ ?uri rdfs:comment  ?description}.\
+                       ?uri geo:geometry ?geo. \
+                            ?geo geo:lat ?latitud. \
+                            ?geo geo:long ?longitud.\
+                    } group by ?uri ?title ?description';
+    var query = 'PREFIX pproc: <http://contsem.unizar.es/def/sector-publico/pproc#>' +
+'PREFIX s: <http://schema.org/>' +
+'PREFIX pc: <http://purl.org/procurement/public-contracts#>' +
+'PREFIX gr: <http://purl.org/goodrelations/v1#>' +
+'PREFIX dcterms: <http://purl.org/dc/terms/>' +
+'SELECT DISTINCT ?contrato ?nombreContrato ?type ?adjudicatario ?impLicitacionSinIVA ?impLicitacionConIVA ?impCanon \
+?impAdjudicacionSinIVA ?impAdjudicacionConIVA ?procedimiento ?entidad ?servicio ?numLicitadores \
+WHERE { \
+  ?contrato dcterms:title ?nombreContrato; \
+  pproc:contractObject ?contractObject;\
+  pproc:managingDepartment ?managing.\
+  ?tender pc:supplier ?supplier.\
+  ?managing dcterms:title ?servicio.\
+  ?supplier s:name ?adjudicatario.\
+  ?contractObject pproc:contractEconomicConditions ?contractEconomicConditions.\
+  OPTIONAL{\
+    ?contractEconomicConditions pproc:budgetPrice ?budgetPriceNOVAT;\
+    pproc:budgetPrice ?budgetPriceVAT.\
+    ?budgetPriceNOVAT gr:hasCurrencyValue ?impLicitacionSinIVA;\
+    gr:valueAddedTaxIncluded "false"^^xsd:boolean.\
+    ?budgetPriceVAT gr:hasCurrencyValue ?impLicitacionConIVA;\
+    gr:valueAddedTaxIncluded "true"^^xsd:boolean.\
+  }\
+  OPTIONAL {\
+    ?contractEconomicConditions pproc:feePrice ?feePrice.\
+    ?feePrice gr:hasCurrencyValue ?impCanon;\
+    gr:valueAddedTaxIncluded "false"^^xsd:boolean.\
+  }\
+  ?tender pc:offeredPrice ?offeredPriceNOVAT;\
+  pc:offeredPrice ?offeredPriceVAT.\
+  ?offeredPriceNOVAT gr:hasCurrencyValue ?impAdjudicacionSinIVA;\
+  gr:valueAddedTaxIncluded "false"^^xsd:boolean.\
+  ?offeredPriceVAT gr:hasCurrencyValue ?impAdjudicacionConIVA;\
+  gr:valueAddedTaxIncluded "true"^^xsd:boolean.\
+    {\
+      SELECT DISTINCT ?contrato ?procedimiento ?type ?tender ?entidad ?servicio \
+        WHERE {\
+          ?contrato a pproc:Contract;\
+          a ?type;\
+          pproc:contractProcedureSpecifications/pproc:procedureType ?procedimiento;\
+          pc:contractingAuthority/dcterms:title ?entidad;\
+          pc:tender ?tender;\
+          pproc:managingDepartment ?managing.\
+          ?tender a pproc:FormalizedTender;\
+          pproc:formalizedDate ?formalizedDate.\
+          ?managing dcterms:title ?servicio.\
+          FILTER  (regex(?formalizedDate, "2014")) \
+        } \
+    } \
+    {\
+      SELECT DISTINCT ?contrato count(?tender) AS ?numLicitadores \
+        WHERE {\
+          ?contrato a pproc:Contract;\
+          a ?type;pc:tender ?tender.\
+        } \
+      GROUP BY ?contrato\
+    }\
+}';
+    var formato = 'text/csv'
+
+    d3.csv(SPARQL_ENDPOINT + '?default-graph-uri=' + encodeURIComponent(grafo) + '&query=' + encodeURIComponent(query) + '&format=' + encodeURIComponent(formato) + '&timeout=0', function(error, data) {
+        console.log(data[2]);
+})
+</script>
+</html>
